@@ -514,6 +514,39 @@ TEST(roundtrip_corpus) {
     assert_roundtrip("d0:lee"); /* dict { "": empty list } -- empty key */
 }
 
+TEST(emit_to_alloc_basic) {
+    bencode_value *v = NULL;
+    REQUIRE(parse_str("d3:cow3:moo4:spam4:eggse", &v, NULL) == BENCODE_OK);
+
+    uint8_t *bytes = NULL;
+    size_t len = 0;
+    REQUIRE(bencode_emit_to_alloc(v, NULL, &bytes, &len) == BENCODE_OK);
+    REQUIRE(bytes != NULL);
+    CHECK(len == strlen("d3:cow3:moo4:spam4:eggse"));
+    CHECK(memcmp(bytes, "d3:cow3:moo4:spam4:eggse", len) == 0);
+
+    bencode_buffer_free(NULL, bytes);
+    bencode_value_free(v);
+}
+
+TEST(emit_to_alloc_null_args_rejected) {
+    bencode_value *v = NULL;
+    REQUIRE(bencode_int_new(1, NULL, &v) == BENCODE_OK);
+    uint8_t *bytes = NULL;
+    size_t len = 0;
+    CHECK(bencode_emit_to_alloc(NULL, NULL, &bytes, &len) == BENCODE_ERR_INVALID_ARG);
+    CHECK(bencode_emit_to_alloc(v, NULL, NULL, &len) == BENCODE_ERR_INVALID_ARG);
+    CHECK(bencode_emit_to_alloc(v, NULL, &bytes, NULL) == BENCODE_ERR_INVALID_ARG);
+    bencode_value_free(v);
+}
+
+TEST(value_type_of_null_is_invalid) {
+    /* NULL must map to the BENCODE_INVALID sentinel rather than any
+     * real type tag. Callers using a switch with a default arm rely
+     * on this. */
+    CHECK(bencode_value_type(NULL) == BENCODE_INVALID);
+}
+
 TEST(emit_int_boundaries) {
     bencode_value *v = NULL;
     REQUIRE(bencode_int_new(INT64_MIN, NULL, &v) == BENCODE_OK);
@@ -645,6 +678,9 @@ int main(void) {
     run_builder_wrong_type_accessor_returns_invalid_arg();
 
     run_roundtrip_corpus();
+    run_emit_to_alloc_basic();
+    run_emit_to_alloc_null_args_rejected();
+    run_value_type_of_null_is_invalid();
     run_emit_int_boundaries();
 
     run_status_string_covers_all_codes();

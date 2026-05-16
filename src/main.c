@@ -223,6 +223,7 @@ static int print_value(const bencode_value *v, FILE *out, size_t depth) {
         return print_list(v, out, depth);
     case BENCODE_DICT:
         return print_dict(v, out, depth);
+    case BENCODE_INVALID:
     default:
         return -1;
     }
@@ -231,7 +232,7 @@ static int print_value(const bencode_value *v, FILE *out, size_t depth) {
 /* -- Subcommands ----------------------------------------------------------- */
 
 /** Map a library status to a CLI exit code per the contract in this file's
- *  header. Currently only HELLO_ERR_IO maps to 2; everything else non-OK
+ *  header. Currently only BENCODE_ERR_IO maps to 2; everything else non-OK
  *  is a data-level problem and maps to 1. */
 static int status_to_exit(bencode_status st) {
     if (st == BENCODE_OK) {
@@ -304,41 +305,6 @@ static int cmd_print(const char *prog, const char *path) {
     return rc;
 }
 
-/* Growable byte sink used by `roundtrip` for in-memory emit. */
-typedef struct roundtrip_sink {
-    uint8_t *data;
-    size_t len;
-    size_t cap;
-    int oom;
-} roundtrip_sink;
-
-static bencode_status roundtrip_append(const void *bytes, size_t len, void *user) {
-    roundtrip_sink *s = user;
-    if (s->oom) {
-        return BENCODE_ERR_NOMEM;
-    }
-    if (s->cap - s->len < len) {
-        size_t new_cap = s->cap == 0 ? 4096U : s->cap;
-        while (new_cap - s->len < len) {
-            if (new_cap > SIZE_MAX / 2U) {
-                s->oom = 1;
-                return BENCODE_ERR_NOMEM;
-            }
-            new_cap *= 2U;
-        }
-        uint8_t *grown = realloc(s->data, new_cap);
-        if (grown == NULL) {
-            s->oom = 1;
-            return BENCODE_ERR_NOMEM;
-        }
-        s->data = grown;
-        s->cap = new_cap;
-    }
-    memcpy(s->data + s->len, bytes, len);
-    s->len += len;
-    return BENCODE_OK;
-}
-
 static int cmd_roundtrip(const char *prog, const char *path) {
     uint8_t *buf = NULL;
     size_t size = 0;
@@ -348,32 +314,25 @@ static int cmd_roundtrip(const char *prog, const char *path) {
         return rc;
     }
 
-    roundtrip_sink sink = {0};
-    bencode_status st = bencode_emit(value, roundtrip_append, &sink);
-    if (sink.oom) {
-        fprintf(stderr, "%s: out of memory while emitting\n", prog);
-        free(sink.data);
-        bencode_value_free(value);
-        free(buf);
-        return 1;
-    }
+    uint8_t *emitted = NULL;
+    size_t emitted_len = 0;
+    bencode_status st = bencode_emit_to_alloc(value, NULL, &emitted, &emitted_len);
     if (st != BENCODE_OK) {
         fprintf(stderr, "%s: emit failed: %s\n", prog, bencode_status_string(st));
-        free(sink.data);
         bencode_value_free(value);
         free(buf);
         return status_to_exit(st);
     }
 
-    int ok = (sink.len == size) && (size == 0 || memcmp(sink.data, buf, size) == 0);
+    int ok = (emitted_len == size) && (size == 0 || memcmp(emitted, buf, size) == 0);
     if (!ok) {
         fprintf(stderr, "%s: roundtrip mismatch: input %zu bytes, output %zu bytes\n", prog, size,
-                sink.len);
+                emitted_len);
         rc = 1;
     } else if (puts("ok") == EOF) {
         rc = 2;
     }
-    free(sink.data);
+    bencode_buffer_free(NULL, emitted);
     bencode_value_free(value);
     free(buf);
     return rc;
@@ -436,6 +395,7 @@ static void walk(const bencode_value *v, stats *st, size_t depth) {
         }
         break;
     }
+    case BENCODE_INVALID:
     default:
         break;
     }

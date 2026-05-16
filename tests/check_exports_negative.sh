@@ -26,12 +26,14 @@ trap 'rm -rf "$tmpdir"' EXIT
 # A library that exports exactly the documented set PLUS one extra symbol.
 # The extra symbol is the regression we want the checker to catch.
 cat > "$tmpdir/lib.c" <<'EOF'
+int bencode_buffer_free(void){return 0;}
 int bencode_dict_at(void){return 0;}
 int bencode_dict_get(void){return 0;}
 int bencode_dict_new(void){return 0;}
 int bencode_dict_set(void){return 0;}
 int bencode_dict_size(void){return 0;}
 int bencode_emit(void){return 0;}
+int bencode_emit_to_alloc(void){return 0;}
 int bencode_emit_to_file(void){return 0;}
 int bencode_int_new(void){return 0;}
 int bencode_list_append(void){return 0;}

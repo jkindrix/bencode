@@ -124,8 +124,15 @@ typedef enum bencode_status {
     BENCODE_ERR_USER_ABORTED = 13
 } bencode_status;
 
-/** Type tag for ::bencode_value. */
+/** Type tag for ::bencode_value.
+ *
+ * ::BENCODE_INVALID is the type returned by ::bencode_value_type when
+ * called with a NULL pointer. No real value will ever have this type,
+ * so callers can dispatch on a switch without a separate NULL check
+ * and a `default:` arm will handle the bad-pointer case.
+ */
 typedef enum bencode_type {
+    BENCODE_INVALID = 0,
     BENCODE_INT = 1,
     BENCODE_STRING = 2,
     BENCODE_LIST = 3,
@@ -253,6 +260,13 @@ BENCODE_API BENCODE_NODISCARD bencode_status bencode_parse_sax(const uint8_t *in
  * @return ::BENCODE_OK on success, or an error code.
  *
  * @par Thread safety: MT-Safe.
+ *
+ * @par Stack cost:
+ *      The DOM parser keeps a fixed-size scope stack of ~6 KB on the
+ *      calling thread's C stack (one ~24-byte frame per possible
+ *      depth level, sized to the internal cap of 257). On exotic
+ *      targets with restricted thread stacks this may matter; on
+ *      typical desktop/server platforms it is negligible.
  */
 BENCODE_API BENCODE_NODISCARD bencode_status bencode_parse(const uint8_t *input, size_t input_size,
                                                            const bencode_parse_options *opts,
@@ -384,6 +398,13 @@ BENCODE_API BENCODE_NODISCARD bencode_status bencode_dict_new(const bencode_allo
  * in that order, matching the Bencode canonical form.
  *
  * On failure, @p child remains owned by the caller.
+ *
+ * @par Complexity:
+ *      O(log n) search + O(n) memmove for the ordered insert, where
+ *      n is the current dict size. Bulk-constructing a large dict via
+ *      repeated ::bencode_dict_set is therefore O(n²); if input
+ *      arrives already sorted (e.g., parsing from canonical Bencode),
+ *      ::bencode_parse is the cheaper path.
  */
 BENCODE_API BENCODE_NODISCARD bencode_status bencode_dict_set(bencode_value *dict,
                                                               const uint8_t *key, size_t key_len,
@@ -420,6 +441,37 @@ BENCODE_API BENCODE_NODISCARD bencode_status bencode_emit(const bencode_value *v
  *  write or final fflush fails. */
 BENCODE_API BENCODE_NODISCARD bencode_status bencode_emit_to_file(const bencode_value *value,
                                                                   FILE *out);
+
+/**
+ * Convenience: emit @p value into a freshly-allocated byte buffer.
+ *
+ * The output buffer is allocated with @p alloc (or @c malloc when
+ * @p alloc is NULL). On success the caller owns the buffer and must
+ * release it with ::bencode_buffer_free, passing the same @p alloc.
+ *
+ * @param value      Value to emit. Must not be NULL.
+ * @param alloc      Allocator. NULL uses platform @c malloc / @c free.
+ * @param[out] out_bytes  Receives the buffer pointer on success.
+ * @param[out] out_len    Receives the buffer length on success.
+ *
+ * @return ::BENCODE_OK on success, ::BENCODE_ERR_INVALID_ARG on NULL
+ *         arguments, ::BENCODE_ERR_NOMEM on allocation failure.
+ *
+ * @par Thread safety: MT-Safe.
+ */
+BENCODE_API BENCODE_NODISCARD bencode_status bencode_emit_to_alloc(const bencode_value *value,
+                                                                   const bencode_allocator *alloc,
+                                                                   uint8_t **out_bytes,
+                                                                   size_t *out_len);
+
+/**
+ * Free a buffer previously returned by ::bencode_emit_to_alloc.
+ *
+ * @param alloc  Allocator that was passed to ::bencode_emit_to_alloc.
+ *               Must match; mixing allocators here is undefined.
+ * @param bytes  Buffer pointer. NULL is a no-op.
+ */
+BENCODE_API void bencode_buffer_free(const bencode_allocator *alloc, uint8_t *bytes);
 
 /* -- Misc ------------------------------------------------------------------- */
 

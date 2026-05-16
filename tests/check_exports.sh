@@ -20,12 +20,14 @@ fi
 
 # Keep this list sorted; it's diffed against `nm`'s output.
 expected=$(printf '%s\n' \
+    bencode_buffer_free \
     bencode_dict_at \
     bencode_dict_get \
     bencode_dict_new \
     bencode_dict_set \
     bencode_dict_size \
     bencode_emit \
+    bencode_emit_to_alloc \
     bencode_emit_to_file \
     bencode_int_new \
     bencode_list_append \

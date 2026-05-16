@@ -103,6 +103,7 @@ static bencode_status emit_value(const bencode_value *value, bencode_emit_fn emi
         return emit_list(value, emit, user);
     case BENCODE_DICT:
         return emit_dict(value, emit, user);
+    case BENCODE_INVALID:
     default:
         return BENCODE_ERR_INVALID_ARG;
     }
@@ -139,4 +140,76 @@ bencode_status bencode_emit_to_file(const bencode_value *value, FILE *out) {
         return BENCODE_ERR_IO;
     }
     return BENCODE_OK;
+}
+
+/* -- Emit-to-allocated-buffer convenience ----------------------------------- */
+
+typedef struct alloc_sink {
+    uint8_t *bytes;
+    size_t len;
+    size_t cap;
+    const bencode_allocator *alloc;
+    int oom;
+} alloc_sink;
+
+static bencode_status alloc_sink_append(const void *bytes, size_t len, void *user) {
+    alloc_sink *s = user;
+    if (s->oom) {
+        return BENCODE_ERR_NOMEM;
+    }
+    /* Grow with explicit overflow guards. The allocator API gives us only
+     * alloc + free, so we do alloc-new + memcpy + free-old. */
+    if (s->cap - s->len < len) {
+        size_t new_cap = s->cap == 0 ? 4096U : s->cap;
+        while (new_cap - s->len < len) {
+            if (new_cap > SIZE_MAX / 2U) {
+                s->oom = 1;
+                return BENCODE_ERR_NOMEM;
+            }
+            new_cap *= 2U;
+        }
+        uint8_t *fresh = bencode_alloc(s->alloc, new_cap);
+        if (fresh == NULL) {
+            s->oom = 1;
+            return BENCODE_ERR_NOMEM;
+        }
+        if (s->bytes != NULL) {
+            memcpy(fresh, s->bytes, s->len);
+            bencode_free(s->alloc, s->bytes);
+        }
+        s->bytes = fresh;
+        s->cap = new_cap;
+    }
+    memcpy(s->bytes + s->len, bytes, len);
+    s->len += len;
+    return BENCODE_OK;
+}
+
+bencode_status bencode_emit_to_alloc(const bencode_value *value, const bencode_allocator *alloc,
+                                     uint8_t **out_bytes, size_t *out_len) {
+    if (value == NULL || out_bytes == NULL || out_len == NULL) {
+        if (out_bytes != NULL) {
+            *out_bytes = NULL;
+        }
+        if (out_len != NULL) {
+            *out_len = 0;
+        }
+        return BENCODE_ERR_INVALID_ARG;
+    }
+    *out_bytes = NULL;
+    *out_len = 0;
+
+    alloc_sink s = {NULL, 0, 0, alloc, 0};
+    bencode_status st = emit_value(value, alloc_sink_append, &s);
+    if (st != BENCODE_OK) {
+        bencode_free(alloc, s.bytes);
+        return st;
+    }
+    *out_bytes = s.bytes;
+    *out_len = s.len;
+    return BENCODE_OK;
+}
+
+void bencode_buffer_free(const bencode_allocator *alloc, uint8_t *bytes) {
+    bencode_free(alloc, bytes);
 }

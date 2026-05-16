@@ -51,13 +51,13 @@ void bencode_free(const bencode_allocator *a, void *ptr) {
 /* -- Type tag --------------------------------------------------------------- */
 
 bencode_type bencode_value_type(const bencode_value *value) {
-    /* Defensive: NULL isn't a contract violation worth crashing on, but
-     * it has no valid type tag either. Pick BENCODE_INT as a defined
-     * sentinel rather than fabricating an out-of-range enum value (which
-     * would itself trip clang-analyzer-optin.core.EnumCastOutOfRange).
-     * Callers who care about NULL must check separately. */
+    /* NULL is a defined input: callers who got a NULL from
+     * bencode_list_at / bencode_dict_get on a missing key shouldn't
+     * have to add a separate guard. Returning BENCODE_INVALID (a
+     * distinct, deliberately-not-real type tag) lets a switch dispatch
+     * handle the case via its default arm. */
     if (value == NULL) {
-        return BENCODE_INT;
+        return BENCODE_INVALID;
     }
     return value->type;
 }
@@ -80,6 +80,7 @@ void bencode_value_free(bencode_value *value) {
         return;
     }
     switch (value->type) {
+    case BENCODE_INVALID:
     case BENCODE_INT:
         break;
     case BENCODE_STRING:
@@ -491,6 +492,7 @@ bencode_status bencode_value_clone(const bencode_value *value, const bencode_all
         return BENCODE_OK;
     }
 
+    case BENCODE_INVALID:
     default:
         return BENCODE_ERR_INVALID_ARG;
     }

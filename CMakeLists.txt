@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.20)
 # Project metadata
 # --------------------------------------------------------------------------- #
 project(bencode
-    VERSION 0.1.0
+    VERSION 0.2.0
     DESCRIPTION "A small, strict Bencode parser, emitter, and CLI in modern C."
     LANGUAGES C
 )
@@ -35,9 +35,10 @@ endif()
 # --------------------------------------------------------------------------- #
 # Options
 # --------------------------------------------------------------------------- #
-option(BENCODE_BUILD_TESTS    "Build unit tests"            ${BENCODE_IS_TOP_LEVEL})
-option(BENCODE_BUILD_EXAMPLES "Build example programs"      ${BENCODE_IS_TOP_LEVEL})
-option(BENCODE_BUILD_CLI      "Build the bencode CLI"       ${BENCODE_IS_TOP_LEVEL})
+option(BENCODE_BUILD_TESTS      "Build unit tests"            ${BENCODE_IS_TOP_LEVEL})
+option(BENCODE_BUILD_EXAMPLES   "Build example programs"      ${BENCODE_IS_TOP_LEVEL})
+option(BENCODE_BUILD_CLI        "Build the bencode CLI"       ${BENCODE_IS_TOP_LEVEL})
+option(BENCODE_BUILD_BENCHMARKS "Build the bencode_bench microbenchmark" ${BENCODE_IS_TOP_LEVEL})
 option(BENCODE_WARNINGS_AS_ERRORS "Treat warnings as errors" ${BENCODE_IS_TOP_LEVEL})
 option(BENCODE_ENABLE_ASAN    "Enable AddressSanitizer"     OFF)
 option(BENCODE_ENABLE_UBSAN   "Enable UndefinedBehaviorSanitizer" OFF)
@@ -118,6 +119,17 @@ if(BENCODE_BUILD_EXAMPLES)
     target_link_libraries(bencode_decode_example PRIVATE bencode::bencode)
     bencode_apply_warnings(bencode_decode_example)
     bencode_apply_sanitizers(bencode_decode_example)
+endif()
+
+# --------------------------------------------------------------------------- #
+# Benchmarks (built but not installed)
+# --------------------------------------------------------------------------- #
+if(BENCODE_BUILD_BENCHMARKS)
+    add_executable(bencode_bench benchmarks/bench.c)
+    target_link_libraries(bencode_bench PRIVATE bencode::bencode)
+    bencode_apply_warnings(bencode_bench)
+    # Benchmarks are run in Release; sanitizers add overhead that confuses
+    # the numbers. Don't apply them.
 endif()
 
 # --------------------------------------------------------------------------- #

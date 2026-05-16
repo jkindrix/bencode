@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-16
+
+### Added
+- `bencode_emit_to_alloc` + `bencode_buffer_free`: convenience API for
+  emitting a value tree into a freshly-allocated byte buffer. Mirrors
+  the allocator the caller passed (or stdlib malloc/free when NULL).
+  The `roundtrip` CLI subcommand was the first internal user of the
+  pattern; the public function eliminates the duplication.
+- `BENCODE_INVALID = 0` enumerator in `bencode_type`.
+  `bencode_value_type(NULL)` now returns `BENCODE_INVALID` instead of
+  the previous `BENCODE_INT` fallback. Callers using `switch` on the
+  return value can dispatch the NULL case via the `default:` arm
+  without a separate guard.
+- `benchmarks/bench.c`: `bencode_bench` microbenchmark target.
+  Generates a synthetic in-memory corpus and reports MB/s and
+  iter/sec for `parse_sax`, `parse_dom`, `emit`, and `roundtrip` over
+  a configurable wallclock budget. Built behind the new
+  `BENCODE_BUILD_BENCHMARKS` option.
+- Public-header docs: complexity note on `bencode_dict_set`
+  (`O(log n)` search + `O(n)` memmove for the ordered insert; bulk
+  construction is `O(n²)`) and stack-cost note on `bencode_parse`
+  (~6 KB scope stack).
+- Tests for `bencode_emit_to_alloc` (basic + NULL-arg rejection) and
+  for `bencode_value_type(NULL) == BENCODE_INVALID`.
+
+### Changed
+- `bencode_value_type(NULL)` returns `BENCODE_INVALID` (was
+  `BENCODE_INT`). Pre-0.2 callers that relied on the old fallback
+  must add a NULL guard if they cared. Source-compatible with any
+  caller that already NULL-checks (the recommended pattern).
+- Two `bencode_value **` ↔ `void *` assignments in `value.c` now
+  carry explicit casts to satisfy clang-tidy 18's
+  `bugprone-multi-level-implicit-pointer-conversion` check. No
+  behavior change.
+- `bencode_value_type(NULL)` fallback no longer fabricates an
+  out-of-range enum value (was tripping
+  `clang-analyzer-optin.core.EnumCastOutOfRange` on clang-tidy 18+).
+
+### Fixed
+- `bencode_parse_sax` no longer performs `NULL + 0` pointer
+  arithmetic when called with `input == NULL && input_size == 0` (UB
+  caught by UBSan on the first sanitizer build; defined-zero-bytes
+  parse now returns `BENCODE_ERR_TRUNCATED` cleanly).
+- Stale `HELLO_ERR_IO` reference in `src/main.c` -- find/replace
+  artifact from copying the CLI exit-code rationale across projects.
+
 ## [0.1.0] - 2026-05-16
 
 ### Added
