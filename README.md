@@ -120,7 +120,7 @@ Installs:
 ## Consuming
 
 ```cmake
-find_package(bencode 0.1 REQUIRED)
+find_package(bencode 0.2 REQUIRED)
 target_link_libraries(my_app PRIVATE bencode::bencode)
 ```
 
@@ -184,6 +184,10 @@ bencode_status bencode_dict_set(bencode_value *dict,
 bencode_status bencode_emit(const bencode_value *v,
                             bencode_emit_fn emit, void *user);
 bencode_status bencode_emit_to_file(const bencode_value *v, FILE *out);
+bencode_status bencode_emit_to_alloc(const bencode_value *v,
+                                     const bencode_allocator *a,
+                                     uint8_t **out_bytes, size_t *out_len);
+void           bencode_buffer_free(const bencode_allocator *a, uint8_t *bytes);
 
 /* Misc: */
 const char    *bencode_version(void);

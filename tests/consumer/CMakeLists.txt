@@ -4,7 +4,7 @@ project(bencode_consumer LANGUAGES C)
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-find_package(bencode 0.1 REQUIRED)
+find_package(bencode 0.2 REQUIRED)
 
 add_executable(consumer consumer.c)
 target_link_libraries(consumer PRIVATE bencode::bencode)
