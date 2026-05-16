@@ -96,7 +96,7 @@ void bencode_value_free(bencode_value *value) {
         for (size_t i = 0; i < value->as.list.count; ++i) {
             bencode_value_free(value->as.list.items[i]);
         }
-        bencode_free(value->alloc, value->as.list.items);
+        bencode_free(value->alloc, (void *)value->as.list.items);
         break;
     case BENCODE_DICT:
         for (size_t i = 0; i < value->as.dict.count; ++i) {
