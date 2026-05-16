@@ -128,8 +128,11 @@ if(BENCODE_BUILD_BENCHMARKS)
     add_executable(bencode_bench benchmarks/bench.c)
     target_link_libraries(bencode_bench PRIVATE bencode::bencode)
     bencode_apply_warnings(bencode_bench)
-    # Benchmarks are run in Release; sanitizers add overhead that confuses
-    # the numbers. Don't apply them.
+    # The benchmark binary is intended for Release timing, but anything
+    # that links libbencode must inherit the same sanitizer
+    # instrumentation. Skipping it here causes link failures (missing
+    # __asan_* / __ubsan_* runtime symbols) under the sanitizer presets.
+    bencode_apply_sanitizers(bencode_bench)
 endif()
 
 # --------------------------------------------------------------------------- #
