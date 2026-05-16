@@ -181,6 +181,14 @@ bencode_status bencode_parse(const uint8_t *input, size_t input_size,
     size_t max_depth = (opts != NULL) ? opts->max_depth : 0;
     int reject_trailing = (opts != NULL) ? opts->reject_trailing : 0;
 
+    bencode_status as = bencode_allocator_check(alloc);
+    if (as != BENCODE_OK) {
+        if (consumed != NULL) {
+            *consumed = 0;
+        }
+        return as;
+    }
+
     dom_state state;
     state.root = NULL;
     state.alloc = alloc;

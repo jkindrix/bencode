@@ -38,6 +38,8 @@ const char *bencode_status_string(bencode_status status) {
         return "I/O error";
     case BENCODE_ERR_USER_ABORTED:
         return "parse aborted by caller";
+    case BENCODE_ERR_DICT_MISSING_VALUE:
+        return "dictionary key has no matching value";
     default:
         return "unknown error";
     }

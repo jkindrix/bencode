@@ -52,6 +52,12 @@ struct bencode_value {
 void *bencode_alloc(const bencode_allocator *a, size_t size);
 void bencode_free(const bencode_allocator *a, void *ptr);
 
+/** Validate an allocator pointer. Returns ::BENCODE_OK if @p a is NULL
+ *  or if both @p a->alloc and @p a->free are non-NULL; returns
+ *  ::BENCODE_ERR_INVALID_ARG for a partial table. Called from every
+ *  public entry point that takes a `const bencode_allocator *`. */
+bencode_status bencode_allocator_check(const bencode_allocator *a);
+
 /** Construct a string value whose payload pointer aliases @p bytes rather
  *  than being copied. Used by the DOM parser to keep its zero-copy promise.
  *  Not exposed publicly because borrowed-string lifetime is a footgun for

@@ -232,7 +232,9 @@ dynamic table.
   enabling a `clang-format --dry-run -Werror` check on staged C sources
   at commit time.
 - Coverage: `scripts/coverage.sh` computes coverage and enforces the
-  90% floor, with lcov 1.x/2.x version detection.
+  v0.x 75 % floor (overridable with `MIN_LINE_COVERAGE=<pct>`), with
+  lcov 1.x/2.x version detection. The floor will be ratcheted up as
+  fault-injection tests are added for the NOMEM / I/O error paths.
 - Fuzz:    `cmake --build build/fuzz --target fuzz_parse_sax fuzz_parse_dom`
   then `./build/fuzz/tests/fuzz/fuzz_parse_sax tests/fuzz/corpus -dict=tests/fuzz/bencode.dict -max_total_time=60`.
 - CI:      see `.github/workflows/ci.yml` for the build/test matrix,

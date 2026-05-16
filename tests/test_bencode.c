@@ -305,6 +305,27 @@ TEST(dict_int_key_rejected) {
     CHECK(v == NULL);
 }
 
+TEST(dict_missing_value_rejected) {
+    /* d1:ae -- key "a" but no value before the closing 'e'. BEP 3
+     * requires dict bodies to alternate string keys and values, so this
+     * malformed input must be rejected. */
+    bencode_value *v = NULL;
+    CHECK(parse_str("d1:ae", &v, NULL) == BENCODE_ERR_DICT_MISSING_VALUE);
+    CHECK(v == NULL);
+
+    /* The CLI's validate subcommand reaches the same conclusion -- not
+     * tested here (that's a CLI smoke test in tests/CMakeLists.txt). */
+}
+
+TEST(dict_partial_pair_after_complete_one_rejected) {
+    /* A dict that starts well-formed (a -> 1) then has a trailing key
+     * with no value. The successful key+value sets expecting_key=1; the
+     * next key arrives, expecting_key=0; then 'e' closes -- must reject. */
+    bencode_value *v = NULL;
+    CHECK(parse_str("d1:ai1e1:be", &v, NULL) == BENCODE_ERR_DICT_MISSING_VALUE);
+    CHECK(v == NULL);
+}
+
 /* -- Trailing-byte handling ------------------------------------------------ */
 
 TEST(trailing_bytes_lenient_accepted) {
@@ -442,6 +463,24 @@ TEST(builder_clone_detaches_strings) {
     bencode_value_free(clone);
 }
 
+TEST(partial_allocator_rejected) {
+    /* Allocator with alloc set but free NULL would silently mix a
+     * custom alloc with stdlib free. The public API must reject. */
+    bencode_allocator partial = {0};
+    partial.alloc = (void *(*)(size_t, void *))1; /* opaque non-NULL */
+    partial.free = NULL;
+    bencode_value *v = NULL;
+    CHECK(bencode_int_new(0, &partial, &v) == BENCODE_ERR_INVALID_ARG);
+    CHECK(v == NULL);
+
+    /* And the inverse: free set, alloc NULL. */
+    bencode_allocator partial2 = {0};
+    partial2.alloc = NULL;
+    partial2.free = (void (*)(void *, void *))1;
+    CHECK(bencode_int_new(0, &partial2, &v) == BENCODE_ERR_INVALID_ARG);
+    CHECK(v == NULL);
+}
+
 TEST(builder_wrong_type_accessor_returns_invalid_arg) {
     bencode_value *s = NULL;
     REQUIRE(bencode_string_new((const uint8_t *)"hi", 2, NULL, &s) == BENCODE_OK);
@@ -577,6 +616,7 @@ TEST(status_string_covers_all_codes) {
         BENCODE_ERR_NOMEM,
         BENCODE_ERR_IO,
         BENCODE_ERR_USER_ABORTED,
+        BENCODE_ERR_DICT_MISSING_VALUE,
     };
     for (size_t i = 0; i < sizeof codes / sizeof codes[0]; ++i) {
         const char *s = bencode_status_string(codes[i]);
@@ -662,6 +702,8 @@ int main(void) {
     run_dict_unsorted_rejected();
     run_dict_duplicate_rejected();
     run_dict_int_key_rejected();
+    run_dict_missing_value_rejected();
+    run_dict_partial_pair_after_complete_one_rejected();
 
     run_trailing_bytes_lenient_accepted();
     run_trailing_bytes_strict_rejected();
@@ -675,6 +717,7 @@ int main(void) {
     run_builder_dict_keeps_sorted();
     run_builder_dict_set_replaces();
     run_builder_clone_detaches_strings();
+    run_partial_allocator_rejected();
     run_builder_wrong_type_accessor_returns_invalid_arg();
 
     run_roundtrip_corpus();

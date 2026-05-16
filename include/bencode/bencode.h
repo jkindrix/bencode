@@ -121,7 +121,11 @@ typedef enum bencode_status {
     /** A SAX callback aborted the parse by returning non-OK. The
      *  callback's status is propagated; this code is reserved for the
      *  parser's own use. */
-    BENCODE_ERR_USER_ABORTED = 13
+    BENCODE_ERR_USER_ABORTED = 13,
+
+    /** Dictionary closed (`e`) while waiting for a value to pair with
+     *  the most recent key (e.g. the malformed `d1:ae`). */
+    BENCODE_ERR_DICT_MISSING_VALUE = 14
 } bencode_status;
 
 /** Type tag for ::bencode_value.
@@ -155,9 +159,15 @@ typedef struct bencode_value bencode_value;
  *      across threads.
  */
 typedef struct bencode_allocator {
-    /** Allocate @p size bytes. Returns NULL on failure. */
+    /** Allocate @p size bytes. Returns NULL on failure. Must be non-NULL
+     *  whenever the surrounding ::bencode_allocator struct is non-NULL;
+     *  the library rejects partial tables (one function set, the other
+     *  NULL) with ::BENCODE_ERR_INVALID_ARG to prevent silently mixing
+     *  a custom allocator with the platform `free`. */
     void *(*alloc)(size_t size, void *user);
-    /** Free a pointer previously returned by @p alloc. NULL is a no-op. */
+    /** Free a pointer previously returned by @p alloc. NULL is a no-op
+     *  *only when the surrounding struct itself is NULL*; otherwise
+     *  must be non-NULL (see @p alloc). */
     void (*free)(void *ptr, void *user);
     /** Opaque user data passed verbatim to @p alloc and @p free. */
     void *user;
@@ -294,7 +304,10 @@ BENCODE_API BENCODE_NODISCARD bencode_status bencode_value_clone(const bencode_v
 
 /* -- DOM accessors ---------------------------------------------------------- */
 
-/** Type tag of @p value. Asserts internally that @p value is non-NULL. */
+/** Type tag of @p value, or ::BENCODE_INVALID if @p value is NULL.
+ *  Never asserts; the NULL case lets callers dispatch a missing value
+ *  (e.g. from ::bencode_list_at on an out-of-range index) via a
+ *  `switch`'s `default:` arm without an extra guard. */
 BENCODE_API bencode_type bencode_value_type(const bencode_value *value);
 
 /**

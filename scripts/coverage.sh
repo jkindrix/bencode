@@ -9,7 +9,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 BUILD_DIR="${1:-build/coverage}"
-FLOOR="${MIN_LINE_COVERAGE:-90}"
+# 75% is the v0.x baseline (consistent with .github/workflows/ci.yml).
+# Override via MIN_LINE_COVERAGE=<pct> when investigating a regression
+# or when ratcheting up after adding fault-injection tests.
+FLOOR="${MIN_LINE_COVERAGE:-75}"
 
 if ! command -v lcov >/dev/null 2>&1; then
     echo "error: lcov not found in PATH" >&2

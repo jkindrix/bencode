@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-05-16
+
+### Fixed
+- **Parser correctness:** dictionaries with an odd number of body
+  elements (a key with no matching value, e.g. `d1:ae`) were
+  incorrectly accepted as valid canonical Bencode. The parser now
+  returns the new ::BENCODE_ERR_DICT_MISSING_VALUE status whenever a
+  dict closes while expecting a value. This is the canonical-form
+  rule BEP 3 requires; the previous behavior was a spec violation.
+- **Undefined behavior:** `bencode_parse_sax(NULL, 0, ...)` previously
+  constructed pointer cursors from `NULL`, then compared them with `>=`
+  and subtracted them, both of which are UB on null pointers under
+  C17 6.5.8/4 even though most compilers treat the cases as defined.
+  Zero-byte input now early-returns ::BENCODE_ERR_TRUNCATED before any
+  pointer math.
+- **Allocator validation:** partial `bencode_allocator` tables (one of
+  `alloc` / `free` set, the other NULL) silently mixed a custom
+  allocator with the platform `free` (or vice versa). The library now
+  rejects partial tables with ::BENCODE_ERR_INVALID_ARG at every
+  public entry point that takes an allocator. New test covers both
+  half-set variants.
+- Doc contradiction: the `bencode_value_type` Doxygen header said
+  "Asserts internally that @p value is non-NULL" while the actual
+  function returns ::BENCODE_INVALID for NULL. Header now matches the
+  implementation; the contract is "returns BENCODE_INVALID for NULL,
+  never asserts."
+
+### Added
+- ::BENCODE_ERR_DICT_MISSING_VALUE status code (14).
+- Tests: `dict_missing_value_rejected` and
+  `dict_partial_pair_after_complete_one_rejected` covering the parser
+  fix; `partial_allocator_rejected` covering the allocator-table fix.
+
+### Changed
+- Coverage policy aligned across all three locations: CI workflow,
+  `scripts/coverage.sh` default, and README all say 75 % (the v0.x
+  baseline). Previously the script and README defaulted to 90 %
+  while CI used 75 %, so running `scripts/coverage.sh build/coverage`
+  locally would fail even though CI passed.
+
 ## [0.2.0] - 2026-05-16
 
 ### Added

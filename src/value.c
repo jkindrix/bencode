@@ -48,6 +48,19 @@ void bencode_free(const bencode_allocator *a, void *ptr) {
     free(ptr);
 }
 
+bencode_status bencode_allocator_check(const bencode_allocator *a) {
+    if (a == NULL) {
+        return BENCODE_OK;
+    }
+    /* Both must be set, or both must be NULL (no, the struct is non-NULL
+     * so "both NULL" doesn't make sense -- the caller would just pass
+     * NULL for the allocator pointer itself). */
+    if (a->alloc == NULL || a->free == NULL) {
+        return BENCODE_ERR_INVALID_ARG;
+    }
+    return BENCODE_OK;
+}
+
 /* -- Type tag --------------------------------------------------------------- */
 
 bencode_type bencode_value_type(const bencode_value *value) {
@@ -120,6 +133,10 @@ bencode_status bencode_int_new(bencode_int_t v, const bencode_allocator *alloc,
         return BENCODE_ERR_INVALID_ARG;
     }
     *out = NULL;
+    bencode_status as = bencode_allocator_check(alloc);
+    if (as != BENCODE_OK) {
+        return as;
+    }
     bencode_value *node = value_alloc(alloc, BENCODE_INT);
     if (node == NULL) {
         return BENCODE_ERR_NOMEM;
@@ -138,6 +155,10 @@ bencode_status bencode_string_new(const uint8_t *bytes, size_t len, const bencod
         return BENCODE_ERR_INVALID_ARG;
     }
     *out = NULL;
+    bencode_status as = bencode_allocator_check(alloc);
+    if (as != BENCODE_OK) {
+        return as;
+    }
     bencode_value *node = value_alloc(alloc, BENCODE_STRING);
     if (node == NULL) {
         return BENCODE_ERR_NOMEM;
@@ -190,6 +211,10 @@ bencode_status bencode_list_new(const bencode_allocator *alloc, bencode_value **
         return BENCODE_ERR_INVALID_ARG;
     }
     *out = NULL;
+    bencode_status as = bencode_allocator_check(alloc);
+    if (as != BENCODE_OK) {
+        return as;
+    }
     bencode_value *node = value_alloc(alloc, BENCODE_LIST);
     if (node == NULL) {
         return BENCODE_ERR_NOMEM;
@@ -253,6 +278,10 @@ bencode_status bencode_dict_new(const bencode_allocator *alloc, bencode_value **
         return BENCODE_ERR_INVALID_ARG;
     }
     *out = NULL;
+    bencode_status as = bencode_allocator_check(alloc);
+    if (as != BENCODE_OK) {
+        return as;
+    }
     bencode_value *node = value_alloc(alloc, BENCODE_DICT);
     if (node == NULL) {
         return BENCODE_ERR_NOMEM;
@@ -431,6 +460,10 @@ bencode_status bencode_value_clone(const bencode_value *value, const bencode_all
         return BENCODE_ERR_INVALID_ARG;
     }
     *out = NULL;
+    bencode_status as = bencode_allocator_check(alloc);
+    if (as != BENCODE_OK) {
+        return as;
+    }
     if (value == NULL) {
         return BENCODE_OK;
     }

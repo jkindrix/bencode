@@ -345,7 +345,21 @@ static bencode_status parse_dict(sax_state *s) {
             pop_scope(s);
             return BENCODE_ERR_TRUNCATED;
         }
+
+        /* A dict body alternates: key (must be a byte string), value, key,
+         * value, ... The expecting_key flag in the scope tracks which we
+         * are at. */
+        sax_scope *sc = &s->scopes[s->depth - 1];
+
         if (peek(s) == 'e') {
+            /* The dict closes only when we are at a key boundary -- i.e.
+             * the previous key has its matching value. `d1:ae` lands here
+             * with expecting_key == 0 and must be rejected (BEP 3
+             * requires alternating string keys and values). */
+            if (!sc->expecting_key) {
+                pop_scope(s);
+                return BENCODE_ERR_DICT_MISSING_VALUE;
+            }
             s->p++;
             pop_scope(s);
             if (s->cb != NULL && s->cb->on_dict_end != NULL) {
@@ -353,11 +367,6 @@ static bencode_status parse_dict(sax_state *s) {
             }
             return BENCODE_OK;
         }
-
-        /* A dict body alternates: key (must be a byte string), value, key,
-         * value, ... The expecting_key flag in the scope tracks which we
-         * are at. */
-        sax_scope *sc = &s->scopes[s->depth - 1];
 
         if (sc->expecting_key) {
             st = parse_dict_key(s, sc);
@@ -411,11 +420,19 @@ static bencode_status parse_value(sax_state *s) {
 bencode_status bencode_parse_sax(const uint8_t *input, size_t input_size,
                                  const bencode_callbacks *callbacks, void *user, size_t max_depth,
                                  size_t *consumed) {
+    if (consumed != NULL) {
+        *consumed = 0;
+    }
     if (input == NULL && input_size != 0) {
-        if (consumed != NULL) {
-            *consumed = 0;
-        }
         return BENCODE_ERR_INVALID_ARG;
+    }
+    /* Zero-byte input is "no value at all" -- there's nothing to parse,
+     * and constructing pointer cursors at NULL would force us into
+     * NULL-arithmetic / NULL-comparison UB (the at_end() check uses >=
+     * on the cursors, which is undefined when either is a null
+     * pointer). Short-circuit before any pointer math. */
+    if (input_size == 0) {
+        return BENCODE_ERR_TRUNCATED;
     }
 
     /* Clamp max_depth: 0 -> default; > internal cap -> internal cap. */
@@ -424,12 +441,9 @@ bencode_status bencode_parse_sax(const uint8_t *input, size_t input_size,
         effective = BENCODE_INTERNAL_MAX_DEPTH;
     }
 
-    /* `input + 0` is UB when input is NULL even though the result is
-     * never dereferenced. Guard explicitly so input==NULL && size==0 is
-     * a defined call (it parses zero bytes -> BENCODE_ERR_TRUNCATED). */
     sax_state s;
     s.p = input;
-    s.end = input == NULL ? NULL : input + input_size;
+    s.end = input + input_size;
     s.origin = input;
     s.cb = callbacks;
     s.user = user;

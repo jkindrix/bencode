@@ -198,6 +198,10 @@ bencode_status bencode_emit_to_alloc(const bencode_value *value, const bencode_a
     }
     *out_bytes = NULL;
     *out_len = 0;
+    bencode_status as = bencode_allocator_check(alloc);
+    if (as != BENCODE_OK) {
+        return as;
+    }
 
     alloc_sink s = {NULL, 0, 0, alloc, 0};
     bencode_status st = emit_value(value, alloc_sink_append, &s);
