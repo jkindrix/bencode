@@ -1,0 +1,14 @@
+/*
+ * SPDX-License-Identifier: MIT
+ *
+ * This file is configured by CMake. Do not edit version.h directly.
+ */
+#ifndef BENCODE_VERSION_H
+#define BENCODE_VERSION_H
+
+#define BENCODE_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define BENCODE_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define BENCODE_VERSION_PATCH @PROJECT_VERSION_PATCH@
+#define BENCODE_VERSION_STRING "@PROJECT_VERSION@"
+
+#endif /* BENCODE_VERSION_H */

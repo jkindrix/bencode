@@ -1,0 +1,22 @@
+# libFuzzer token dictionary for the bencode parser. Bencode's "tokens"
+# are the type markers and the small set of digits + the colon
+# separator; splicing these from the dict yields well-formed-shaped
+# input an order of magnitude faster than byte-level mutation.
+
+"i"
+"e"
+"l"
+"d"
+":"
+"0"
+"1"
+"2"
+"9"
+"-"
+"0:"
+"1:"
+"4:spam"
+"i0e"
+"i-1e"
+"le"
+"de"

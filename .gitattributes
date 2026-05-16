@@ -1,0 +1,19 @@
+* text=auto eol=lf
+
+*.c       text diff=cpp
+*.h       text diff=cpp
+*.cmake   text
+CMakeLists.txt text
+*.md      text
+*.yml     text
+*.yaml    text
+*.json    text
+*.sh      text eol=lf
+
+# Fuzz corpus is binary by design (length-prefixed strings can contain
+# arbitrary bytes, including NUL); never convert line endings.
+tests/fuzz/corpus/** binary
+
+*.png binary
+*.jpg binary
+*.ico binary
