@@ -31,11 +31,21 @@ capture_args=(--capture --directory "$BUILD_DIR" --output-file "$BUILD_DIR/cover
 remove_args=(--remove "$BUILD_DIR/coverage.info" '/usr/*' '*/tests/*' --output-file "$BUILD_DIR/coverage.info")
 
 if [ "${lcov_major:-1}" -ge 2 ]; then
-    capture_args+=(--ignore-errors mismatch --rc branch_coverage=1)
+    # --ignore-errors mismatch: gcov reports end-lines that don't match
+    # the function's source location when a function is defined inside
+    # the harness's TEST() macro.
+    # --ignore-errors unused: lcov 2.x's --remove errors when a glob
+    # matches zero files; /usr/* is defensive on some runner images.
+    capture_args+=(--ignore-errors mismatch)
     remove_args+=(--ignore-errors unused)
-else
-    capture_args+=(--rc lcov_branch_coverage=1)
 fi
+# This project tracks **line coverage only**. Branch coverage was
+# previously requested via --rc branch_coverage=1 (2.x) /
+# --rc lcov_branch_coverage=1 (1.x), but neither produced branch records
+# under the current --coverage compile flags, and the CI floor only
+# checks lines. To wire up real branch coverage would require additional
+# -fprofile-arcs / -ftest-coverage plumbing and is deferred until the
+# line-coverage floor is comfortably above 90%.
 
 lcov "${capture_args[@]}"
 lcov "${remove_args[@]}"

@@ -30,6 +30,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
+
 /* -- I/O helpers ----------------------------------------------------------- */
 
 /** Double @p *buf's capacity. Returns 0 on success, non-zero on overflow
@@ -52,10 +57,23 @@ static int grow_buf(uint8_t **buf, size_t *cap) {
     return 0;
 }
 
-/** Open @p path for reading (or return stdin if @p path is NULL / "-"). */
+/** Open @p path for reading (or return stdin if @p path is NULL / "-").
+ *
+ *  On Windows, stdin is text-mode by default, which translates `\r\n` to
+ *  `\n` and treats `0x1A` (Ctrl-Z) as EOF. Bencode is a binary format
+ *  (length-prefixed byte strings can contain any byte), so for piped
+ *  input we must switch stdin to binary mode before reading. File input
+ *  uses `fopen(..., "rb")` and is already binary-safe.
+ */
 static FILE *open_input(const char *path, int *from_stdin) {
     *from_stdin = (path == NULL || strcmp(path, "-") == 0);
-    return *from_stdin ? stdin : fopen(path, "rb");
+    if (*from_stdin) {
+#ifdef _WIN32
+        (void)_setmode(_fileno(stdin), _O_BINARY);
+#endif
+        return stdin;
+    }
+    return fopen(path, "rb");
 }
 
 /** Read the entire content of @p path (or stdin if @p path == "-") into a
@@ -261,7 +279,9 @@ static int load(const char *prog, const char *path, uint8_t **out_buf, size_t *o
     }
 
     bencode_parse_options opts = {0};
-    opts.reject_trailing = 1;
+    /* Strict-by-default since 0.3.0 -- the zero-initialized struct
+     * already rejects trailing bytes. Left as a comment so the strict
+     * intent is explicit at the call site. */
     size_t consumed = 0;
     bencode_status st = bencode_parse(*out_buf, *out_size, &opts, out_value, &consumed);
     if (st != BENCODE_OK) {

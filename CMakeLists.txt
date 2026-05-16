@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.20)
 # Project metadata
 # --------------------------------------------------------------------------- #
 project(bencode
-    VERSION 0.2.2
+    VERSION 0.3.0
     DESCRIPTION "A small, strict Bencode parser, emitter, and CLI in modern C."
     LANGUAGES C
 )

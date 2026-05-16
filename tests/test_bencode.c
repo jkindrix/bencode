@@ -63,14 +63,18 @@ static int g_tests = 0;
  *  byte rejection option. */
 static bencode_status parse_str(const char *literal, bencode_value **out, size_t *consumed) {
     bencode_parse_options opts = {0};
-    opts.reject_trailing = 1;
+    /* Strict-by-default (since 0.3.0); the explicit set is redundant
+     * but kept as documentation of the test's intent. */
+    opts.allow_trailing = 0;
     return bencode_parse((const uint8_t *)literal, strlen(literal), &opts, out, consumed);
 }
 
-/** Same, but allows trailing bytes. */
+/** Same, but explicitly allows trailing bytes (opt-in lenient mode). */
 static bencode_status parse_str_lenient(const char *literal, bencode_value **out,
                                         size_t *consumed) {
-    return bencode_parse((const uint8_t *)literal, strlen(literal), NULL, out, consumed);
+    bencode_parse_options opts = {0};
+    opts.allow_trailing = 1;
+    return bencode_parse((const uint8_t *)literal, strlen(literal), &opts, out, consumed);
 }
 
 /* -- Integer parsing ------------------------------------------------------- */
@@ -334,6 +338,16 @@ TEST(trailing_bytes_lenient_accepted) {
     REQUIRE(parse_str_lenient("i42ejunk", &v, &consumed) == BENCODE_OK);
     CHECK(consumed == 4); /* "i42e" */
     bencode_value_free(v);
+}
+
+TEST(trailing_bytes_null_opts_rejected) {
+    /* Strict-by-default since 0.3.0: passing NULL options is equivalent
+     * to the strict opts struct, so trailing bytes must be rejected. */
+    bencode_value *v = NULL;
+    size_t consumed = 0;
+    CHECK(bencode_parse((const uint8_t *)"i42ejunk", 8, NULL, &v, &consumed) ==
+          BENCODE_ERR_UNEXPECTED_BYTE);
+    CHECK(v == NULL);
 }
 
 TEST(trailing_bytes_strict_rejected) {
@@ -759,6 +773,7 @@ int main(void) {
 
     run_trailing_bytes_lenient_accepted();
     run_trailing_bytes_strict_rejected();
+    run_trailing_bytes_null_opts_rejected();
 
     run_depth_limit_enforced();
 

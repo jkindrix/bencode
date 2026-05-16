@@ -190,11 +190,23 @@ typedef struct bencode_parse_options {
     /** Allocator for the value tree. NULL uses stdlib malloc/free. */
     const bencode_allocator *allocator;
 
-    /** If true, ::bencode_parse rejects input that has trailing bytes
-     *  after the first complete value. If false (the default), trailing
-     *  bytes are allowed and the count of consumed bytes is reported via
-     *  the @p consumed out-parameter. */
-    int reject_trailing;
+    /** If non-zero, ::bencode_parse accepts input that has additional
+     *  bytes after the first complete value; the count of consumed
+     *  bytes is reported via @p consumed. The default (0) is strict:
+     *  trailing bytes are rejected with
+     *  ::BENCODE_ERR_UNEXPECTED_BYTE.
+     *
+     *  Set this to 1 for streaming use (parsing a sequence of
+     *  concatenated values from a buffer); leave it 0 when validating
+     *  a single canonical Bencode document.
+     *
+     *  Renamed from `reject_trailing` in 0.3.0 to flip the default to
+     *  strict, matching the README's "accepts only canonical input"
+     *  claim. Callers that previously set `reject_trailing = 1` should
+     *  now omit the option (or set `allow_trailing = 0`); callers that
+     *  previously relied on the lenient default must now opt in via
+     *  `allow_trailing = 1`. */
+    int allow_trailing;
 } bencode_parse_options;
 
 /* -- SAX parser ------------------------------------------------------------- */
@@ -369,6 +381,22 @@ BENCODE_API BENCODE_NODISCARD bencode_status bencode_dict_at(const bencode_value
                                                              const bencode_value **out_value);
 
 /* -- DOM builder ------------------------------------------------------------ */
+
+/**
+ * @par Depth contract:
+ *      ::bencode_parse caps incoming nesting at
+ *      ::BENCODE_DEFAULT_MAX_DEPTH (or the caller-supplied
+ *      ::bencode_parse_options::max_depth, clamped to the internal cap
+ *      of 256). The builder API below does **not** apply any equivalent
+ *      check -- callers can in principle construct an arbitrarily deep
+ *      tree via repeated ::bencode_list_append /
+ *      ::bencode_dict_set calls. ::bencode_emit, ::bencode_value_clone,
+ *      and ::bencode_value_free walk the tree recursively, so a
+ *      pathologically deep builder-tree can exhaust the C stack of
+ *      callers that operate on it. If you build trees from untrusted
+ *      input or from another deserializer, validate depth yourself
+ *      before invoking the recursive entry points.
+ */
 
 /** Construct an integer value. */
 BENCODE_API BENCODE_NODISCARD bencode_status bencode_int_new(bencode_int_t v,

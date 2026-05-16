@@ -120,7 +120,7 @@ Installs:
 ## Consuming
 
 ```cmake
-find_package(bencode 0.2 REQUIRED)
+find_package(bencode 0.3 REQUIRED)
 target_link_libraries(my_app PRIVATE bencode::bencode)
 ```
 

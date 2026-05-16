@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-16
+
+### Changed (breaking, gated by 0.x SemVer-exception)
+- **`bencode_parse` is now strict-by-default.** The
+  ::bencode_parse_options field `reject_trailing` has been renamed to
+  `allow_trailing` and the default behavior flipped. Previously,
+  passing NULL options (or a zero-initialized struct) accepted
+  trailing bytes after the first complete value -- inconsistent with
+  the README's "accepts only canonical input" claim. Now NULL /
+  zero-init means strict (trailing bytes -> `BENCODE_ERR_UNEXPECTED_BYTE`).
+  Callers parsing a stream of concatenated values must explicitly
+  opt in with `opts.allow_trailing = 1`.
+
+  Migration:
+  - Old `opts.reject_trailing = 1` -> remove (now the default).
+  - Old `opts.reject_trailing = 0` (or NULL opts) **with intent to
+    accept trailing bytes** -> set `opts.allow_trailing = 1`.
+
+### Fixed
+- **Windows stdin was not binary-safe.** The CLI's `read_all`
+  returned `stdin` directly for `-`/omitted-path input. On Windows
+  that's text-mode: `\r\n` is translated to `\n` and `0x1A` (Ctrl-Z)
+  is treated as EOF, corrupting binary Bencode payloads. The CLI
+  now calls `_setmode(_fileno(stdin), _O_BINARY)` on `_WIN32` before
+  reading. File input was already binary-safe via `fopen(..., "rb")`.
+- `scripts/coverage.sh` no longer claims to enable branch coverage.
+  The `--rc branch_coverage=1` / `--rc lcov_branch_coverage=1` flags
+  produced no branch records under the project's current `--coverage`
+  compile setup. Replaced the claim with a comment explaining what
+  would be required to actually wire branches through; line coverage
+  remains the enforced metric.
+
+### Documentation
+- ::bencode_parse / builder section gained an explicit "Depth
+  contract" paragraph: the parser caps incoming nesting, the builder
+  API does not, and ::bencode_emit / ::bencode_value_clone /
+  ::bencode_value_free recurse, so callers building trees from
+  untrusted input must validate depth themselves.
+
+### Added
+- Test `trailing_bytes_null_opts_rejected` covering the new
+  strict-by-default contract for the most common call shape
+  (passing NULL options).
+
 ## [0.2.2] - 2026-05-16
 
 ### Fixed

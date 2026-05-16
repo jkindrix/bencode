@@ -179,7 +179,10 @@ bencode_status bencode_parse(const uint8_t *input, size_t input_size,
 
     const bencode_allocator *alloc = (opts != NULL) ? opts->allocator : NULL;
     size_t max_depth = (opts != NULL) ? opts->max_depth : 0;
-    int reject_trailing = (opts != NULL) ? opts->reject_trailing : 0;
+    /* Default (opts==NULL or opts->allow_trailing==0) is strict; trailing
+     * bytes after the first complete value are rejected. Callers parsing a
+     * stream of concatenated values must set opts->allow_trailing = 1. */
+    int allow_trailing = (opts != NULL) ? opts->allow_trailing : 0;
 
     bencode_status as = bencode_allocator_check(alloc);
     if (as != BENCODE_OK) {
@@ -209,7 +212,7 @@ bencode_status bencode_parse(const uint8_t *input, size_t input_size,
     bencode_status st =
         bencode_parse_sax(input, input_size, &cb, &state, max_depth, &bytes_consumed);
 
-    if (st == BENCODE_OK && reject_trailing && bytes_consumed != input_size) {
+    if (st == BENCODE_OK && !allow_trailing && bytes_consumed != input_size) {
         st = BENCODE_ERR_UNEXPECTED_BYTE;
     }
 
