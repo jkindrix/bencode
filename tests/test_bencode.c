@@ -463,22 +463,74 @@ TEST(builder_clone_detaches_strings) {
     bencode_value_free(clone);
 }
 
+/* Dummy allocator functions, never actually invoked. They exist so the
+ * partial-allocator test below can use real function pointers rather
+ * than (T)1 casts, which clang-tidy flags as portability smells. */
+static void *dummy_alloc(size_t size, void *user) {
+    (void)size;
+    (void)user;
+    return NULL;
+}
+static void dummy_free(void *ptr, void *user) {
+    (void)ptr;
+    (void)user;
+}
+
+/* Many sequential REQUIRE/CHECKs across 6 entry points pushes the
+ * function over the default cognitive-complexity threshold. The
+ * structure is intentional: each entry point gets two assertions
+ * (no_free + no_alloc) so a regression on any one is named in the
+ * failure output. */
+/* NOLINTNEXTLINE(readability-function-cognitive-complexity) */
 TEST(partial_allocator_rejected) {
-    /* Allocator with alloc set but free NULL would silently mix a
-     * custom alloc with stdlib free. The public API must reject. */
-    bencode_allocator partial = {0};
-    partial.alloc = (void *(*)(size_t, void *))1; /* opaque non-NULL */
-    partial.free = NULL;
+    /* A bencode_allocator with one of {alloc, free} set and the other
+     * NULL would silently mix a custom allocator with the platform free
+     * (or vice versa). Every public status-returning entry point that
+     * takes an allocator must reject the half-set forms. */
+    bencode_allocator no_free = {.alloc = dummy_alloc, .free = NULL, .user = NULL};
+    bencode_allocator no_alloc = {.alloc = NULL, .free = dummy_free, .user = NULL};
+
+    /* Builders */
     bencode_value *v = NULL;
-    CHECK(bencode_int_new(0, &partial, &v) == BENCODE_ERR_INVALID_ARG);
+    CHECK(bencode_int_new(0, &no_free, &v) == BENCODE_ERR_INVALID_ARG);
+    CHECK(v == NULL);
+    CHECK(bencode_int_new(0, &no_alloc, &v) == BENCODE_ERR_INVALID_ARG);
     CHECK(v == NULL);
 
-    /* And the inverse: free set, alloc NULL. */
-    bencode_allocator partial2 = {0};
-    partial2.alloc = NULL;
-    partial2.free = (void (*)(void *, void *))1;
-    CHECK(bencode_int_new(0, &partial2, &v) == BENCODE_ERR_INVALID_ARG);
+    CHECK(bencode_string_new((const uint8_t *)"x", 1, &no_free, &v) == BENCODE_ERR_INVALID_ARG);
     CHECK(v == NULL);
+    CHECK(bencode_string_new((const uint8_t *)"x", 1, &no_alloc, &v) == BENCODE_ERR_INVALID_ARG);
+    CHECK(v == NULL);
+
+    CHECK(bencode_list_new(&no_free, &v) == BENCODE_ERR_INVALID_ARG);
+    CHECK(v == NULL);
+    CHECK(bencode_list_new(&no_alloc, &v) == BENCODE_ERR_INVALID_ARG);
+    CHECK(v == NULL);
+
+    CHECK(bencode_dict_new(&no_free, &v) == BENCODE_ERR_INVALID_ARG);
+    CHECK(v == NULL);
+    CHECK(bencode_dict_new(&no_alloc, &v) == BENCODE_ERR_INVALID_ARG);
+    CHECK(v == NULL);
+
+    /* Parser (via parse options) */
+    bencode_parse_options opts_no_free = {0};
+    opts_no_free.allocator = &no_free;
+    CHECK(bencode_parse((const uint8_t *)"i0e", 3, &opts_no_free, &v, NULL) ==
+          BENCODE_ERR_INVALID_ARG);
+    CHECK(v == NULL);
+
+    /* Build a real (default-allocated) value to exercise clone + emit. */
+    bencode_value *real = NULL;
+    REQUIRE(bencode_int_new(42, NULL, &real) == BENCODE_OK);
+    CHECK(bencode_value_clone(real, &no_free, &v) == BENCODE_ERR_INVALID_ARG);
+    CHECK(v == NULL);
+
+    uint8_t *bytes = NULL;
+    size_t len = 0;
+    CHECK(bencode_emit_to_alloc(real, &no_free, &bytes, &len) == BENCODE_ERR_INVALID_ARG);
+    CHECK(bytes == NULL);
+
+    bencode_value_free(real);
 }
 
 TEST(builder_wrong_type_accessor_returns_invalid_arg) {

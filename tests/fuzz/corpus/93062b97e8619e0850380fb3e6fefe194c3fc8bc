@@ -1,0 +1,4 @@
+# Fuzz 0seed corpus
+
+Each file here is one i–put to `LL4:s liparse_sax -merge=0 tests/fuzz/corpus path/to/new/inputs
+```

@@ -54,8 +54,16 @@ void bencode_free(const bencode_allocator *a, void *ptr);
 
 /** Validate an allocator pointer. Returns ::BENCODE_OK if @p a is NULL
  *  or if both @p a->alloc and @p a->free are non-NULL; returns
- *  ::BENCODE_ERR_INVALID_ARG for a partial table. Called from every
- *  public entry point that takes a `const bencode_allocator *`. */
+ *  ::BENCODE_ERR_INVALID_ARG for a partial table.
+ *
+ *  Called from every public *status-returning* entry point that takes
+ *  a `const bencode_allocator *` -- that is: bencode_parse,
+ *  bencode_int_new, bencode_string_new, bencode_list_new,
+ *  bencode_dict_new, bencode_value_clone, and bencode_emit_to_alloc.
+ *
+ *  bencode_buffer_free is `void`-returning and so cannot fail; callers
+ *  are responsible for passing the same allocator they received the
+ *  buffer from (which itself was rejected if partial). */
 bencode_status bencode_allocator_check(const bencode_allocator *a);
 
 /** Construct a string value whose payload pointer aliases @p bytes rather

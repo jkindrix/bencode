@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.20)
 # Project metadata
 # --------------------------------------------------------------------------- #
 project(bencode
-    VERSION 0.2.1
+    VERSION 0.2.2
     DESCRIPTION "A small, strict Bencode parser, emitter, and CLI in modern C."
     LANGUAGES C
 )
@@ -67,7 +67,9 @@ configure_file(
 # --------------------------------------------------------------------------- #
 # Library target
 # --------------------------------------------------------------------------- #
-add_library(bencode
+# Source list, factored out so the fuzz subdirectory can build a
+# separately-instrumented copy of the library (see tests/fuzz/CMakeLists.txt).
+set(BENCODE_LIB_SOURCES
     src/parse_sax.c
     src/value.c
     src/parse_dom.c
@@ -75,6 +77,8 @@ add_library(bencode
     src/status.c
     src/version.c
 )
+
+add_library(bencode ${BENCODE_LIB_SOURCES})
 add_library(bencode::bencode ALIAS bencode)
 
 target_include_directories(bencode

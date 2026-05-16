@@ -1,0 +1,12 @@
+# Fuzz seed corpus
+
+Each file here is one input to `LLVMFuzzerTestOneInput`. Both fuzz
+harnesses (`fuzz_parse_sax`, `fuzz_parse_dom`) use this same corpus.
+
+Seeds cover the obvious clas4_negative`     | A small negative integer.                 |
+| `10_mixed_list`   | A li A list containing different value types.   |
+| `11_nested`       | A nested dict + list.                      |
+| `12_so
+```sh
+./build/fuzz/tests/fuzz/fuzz_parse_sax -merge=1 tests/fuzz/corpus path/to/new/inputs
+```

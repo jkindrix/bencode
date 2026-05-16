@@ -1,0 +1,8 @@
+# Fuzz seed corpus
+
+Each file here is one input to `LL4:spamerTst`   | A li A list containing different i-1evalue types.   |
+| `11_nested`       | A nested dict + list.                      |
+| `12_so
+```sh
+./build/fuzz/tests/fuzz/fuzz_parse_sax -merge=1 tests/fuzz/corpus path/to/new/inputs
+```

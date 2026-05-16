@@ -208,6 +208,15 @@ per-function contracts.
   callers. Shared-library `SOVERSION` is preserved.
 - **Patch** (`1.0.X`) — bug fixes and documentation only.
 
+**0.x exception.** Until 1.0.0, this project follows the standard
+SemVer convention that the 0.x series is unstable. In particular,
+**patch releases during 0.x may add new error-enum values or other
+source-compatible additions** when needed to diagnose a fixed bug
+(`BENCODE_ERR_DICT_MISSING_VALUE` was introduced in 0.2.1 alongside
+the parser fix that produces it). Strict consumers compiling with
+`-Wswitch-enum -Werror` should pin to an exact `0.x.y` during this
+phase. The minor/patch discipline above kicks in once 1.0.0 ships.
+
 The public surface is exactly the symbols declared in
 `include/bencode/bencode.h` and tagged with `BENCODE_API`. Anything else
 is private. The `shared-build` CI job runs a `symbol_export_check` test

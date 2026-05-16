@@ -1,5 +1,5 @@
 PROJECT_NAME           = "bencode"
-PROJECT_NUMBER         = 0.2.1
+PROJECT_NUMBER         = 0.2.2
 PROJECT_BRIEF          = "A strict Bencode parser, emitter, and CLI in modern C."
 OUTPUT_DIRECTORY       = docs
 INPUT                  = include src README.md CONTRIBUTING.md \

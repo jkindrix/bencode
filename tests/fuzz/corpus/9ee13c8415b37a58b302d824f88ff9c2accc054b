@@ -1,0 +1,4 @@
+# Fuzz seed corpus
+
+Each file here is one input to `LL4:spamerTst`   | A li A liparse_sax -merge=1 tests/fuzz/corpus path/to/new/inputs
+```

@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-05-16
+
+### Fixed
+- **Fuzz builds did not actually instrument the library.** Each fuzz
+  executable carried `-fsanitize=fuzzer,address,undefined`, but the
+  `bencode` library it linked was compiled without any sanitizer
+  flags. libFuzzer's coverage feedback and ASan/UBSan therefore only
+  reached the trivial harness wrappers, not the parser. Build a
+  separate `bencode_fuzz` static library inside `tests/fuzz/` with
+  `-fsanitize=fuzzer-no-link,address,undefined` on every translation
+  unit; the harnesses now link against it instead of the production
+  `bencode::bencode` target. The production target stays
+  uninstrumented for non-fuzz consumers.
+
+  Observed throughput dropped from ~6M iter/s to ~300K iter/s on the
+  SAX fuzzer when the library code is actually instrumented -- the
+  earlier numbers were measuring near-empty wrappers.
+- `bencode_allocator_check` doc said "called from every public entry
+  point that takes an allocator," but `bencode_buffer_free` is
+  `void`-returning and cannot fail. Tightened the comment to scope
+  the claim to status-returning entry points and explain the
+  caller-responsibility contract on `bencode_buffer_free`.
+
+### Added
+- 0.x SemVer-exception clause in README's "Versioning & ABI
+  stability" section: until 1.0.0, patch releases may add new
+  error-enum values (such as `BENCODE_ERR_DICT_MISSING_VALUE` in
+  0.2.1) when they're needed to diagnose a fixed bug. Strict
+  consumers compiling with `-Wswitch-enum -Werror` should pin to
+  exact `0.x.y` versions during this phase.
+- Test `partial_allocator_rejected` now exercises every public
+  status-returning allocator-taking API (bencode_int_new,
+  bencode_string_new, bencode_list_new, bencode_dict_new,
+  bencode_parse, bencode_value_clone, bencode_emit_to_alloc), not
+  just the int builder.
+
+### Changed
+- Replaced `(function pointer)1` casts in tests with dummy `static`
+  no-op functions. Casting an integer literal to a function-pointer
+  type was a clang-tidy-flagged portability smell even though the
+  dummy pointers are never invoked.
+
 ## [0.2.1] - 2026-05-16
 
 ### Fixed

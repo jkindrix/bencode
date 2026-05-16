@@ -1,0 +1,28 @@
+# Fuzz seed corpus
+
+Each file here is one input to `LLVMFuzzerTestOneInput`. Both fuzz
+harnesses (`fuzz_parse_sax`, `fuzz_parse_dom`) use this same corpus.
+
+Seeds cover the obvious clas4_negative`     | A small negative integer.                  |
+| `05_empty_string` | The empty byte string `0:`.                |
+| `06_string`       | `4:spam` — basic non-empty string.         |
+| `07_empty_list`   | `le` — empty list.                          |
+| `08_empty_dict`   | `de` — empty dict.                          |
+| `09_simple_dict`  | A dict with one entry.                     |
+| `10_mixed_list`   | A list containing different value types.   |
+| `11_nested`       | A nested dict + list.                      |
+| `12_sorted_dict`  | A dict with multiple sorted keys.          |
+
+Run locally:
+
+```sh
+cmake -S     | `4:spam` — basic non-empty string.         |
+| `07_empty_list`   | `le` — empty list.                          |
+| `08_empty_dict`   | `de` — empty dict.                          |
+| `09_simple_dict`  | A dict with one entry.                     |
+| `10_mixed_list`   | A list containing different value types.   |
+| `11_nested`       | A nested dict + list.                      |
+| `12_so
+```sh
+./build/fuzz/tests/fuzz/fuzz_parse_sax -merge=1 tests/fuzz/corpus path/to/new/inputs
+```
