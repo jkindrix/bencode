@@ -51,10 +51,13 @@ void bencode_free(const bencode_allocator *a, void *ptr) {
 /* -- Type tag --------------------------------------------------------------- */
 
 bencode_type bencode_value_type(const bencode_value *value) {
-    /* The contract says assert internally; in release we still want a
-     * defined return rather than UB on NULL, hence the fallback. */
+    /* Defensive: NULL isn't a contract violation worth crashing on, but
+     * it has no valid type tag either. Pick BENCODE_INT as a defined
+     * sentinel rather than fabricating an out-of-range enum value (which
+     * would itself trip clang-analyzer-optin.core.EnumCastOutOfRange).
+     * Callers who care about NULL must check separately. */
     if (value == NULL) {
-        return (bencode_type)0;
+        return BENCODE_INT;
     }
     return value->type;
 }
@@ -229,13 +232,17 @@ bencode_status bencode_list_append(bencode_value *list, bencode_value *child) {
     if (list == NULL || child == NULL || list->type != BENCODE_LIST) {
         return BENCODE_ERR_INVALID_ARG;
     }
-    void *items = list->as.list.items;
+    /* Explicit cast: grow_array takes void** for generic-array growth,
+     * but the underlying pointer is bencode_value**. clang-tidy's
+     * bugprone-multi-level-implicit-pointer-conversion wants the cast
+     * spelled out. */
+    void *items = (void *)list->as.list.items;
     bencode_status st = grow_array(list->alloc, &items, sizeof(bencode_value *),
                                    &list->as.list.capacity, list->as.list.count + 1);
     if (st != BENCODE_OK) {
         return st;
     }
-    list->as.list.items = items;
+    list->as.list.items = (bencode_value **)items;
     list->as.list.items[list->as.list.count++] = child;
     return BENCODE_OK;
 }
@@ -315,14 +322,14 @@ bencode_status bencode_dict_set(bencode_value *dict, const uint8_t *key, size_t 
         memcpy(key_copy, key, key_len);
     }
 
-    void *entries = dict->as.dict.entries;
+    void *entries = (void *)dict->as.dict.entries;
     bencode_status st = grow_array(dict->alloc, &entries, sizeof(bencode_dict_entry),
                                    &dict->as.dict.capacity, dict->as.dict.count + 1);
     if (st != BENCODE_OK) {
         bencode_free(dict->alloc, key_copy);
         return st;
     }
-    dict->as.dict.entries = entries;
+    dict->as.dict.entries = (bencode_dict_entry *)entries;
 
     /* Shift entries above `index` up by one to make room. */
     if (index < dict->as.dict.count) {
